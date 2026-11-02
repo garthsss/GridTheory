@@ -1,5 +1,7 @@
 import { Moon, Monitor, Sun } from 'lucide-react';
 import { useState } from 'react';
+import { currentAccount } from '../backend/account';
+import { AccountSection } from '../components/AccountSection';
 import { InstallButton } from '../components/InstallButton';
 import { BackupError, MAX_BACKUP_BYTES } from '../lib/backup';
 import { BOARD_THEMES, savePrefs, usePrefs, type AnimationSpeed, type ThemeMode } from '../lib/prefs';
@@ -56,11 +58,13 @@ export function SettingsPage() {
         <h1>Settings</h1>
       </header>
 
+      <AccountSection />
+
       <section className="settings-card">
         <h2>Profile</h2>
         <label htmlFor="profile-name">Your name</label>
         <input id="profile-name" value={profile.name} maxLength={40} onChange={(event) => updateProfile({ name: event.target.value })} />
-        <p className="small muted">Used on your games. Everything stays on this device for now.</p>
+        <p className="small muted">Used on your games.</p>
       </section>
 
       <section className="settings-card">
@@ -140,7 +144,7 @@ export function SettingsPage() {
 
       <section className="settings-card">
         <h2>Your data</h2>
-        <p className="small">Games, rating and progress live in this browser only. Save a backup to move them, or before clearing browser data.</p>
+        <p className="small">Games, rating and progress are saved in this browser{currentAccount() ? ', and synced to your account' : ' only'}. A backup gives you your own copy of them.</p>
         <div className="btn-row">
           <button type="button" className="btn" onClick={exportData}>Download backup</button>
           <label className="btn">
@@ -162,7 +166,7 @@ export function SettingsPage() {
       <section className="settings-card">
         <h2>Privacy</h2>
         <p className="small">
-          GridTheory has no accounts, tracking or analytics, and sets no cookies. Your games and progress stay in this browser. Data only leaves it when you ask.
+          GridTheory has no tracking or analytics, and sets no cookies.{currentAccount() ? <> Read the full <a href="#/privacy">privacy policy</a>.</> : ' Your games and progress stay in this browser. Data only leaves it when you ask.'}
         </p>
         <ul className="small privacy-list">
           <li><strong>Importing games</strong> sends the username you enter to Lichess or Chess.com.</li>

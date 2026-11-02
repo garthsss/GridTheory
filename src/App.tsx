@@ -1,11 +1,14 @@
-import { Activity, BookOpen, Crosshair, Home, LineChart, Settings, Swords, type LucideIcon } from 'lucide-react';
+import { Activity, BookOpen, Crosshair, Home, LineChart, Settings, ShieldCheck, Swords, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { currentAccount, useSyncStatus } from './backend/account';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { applyPrefs, usePrefs } from './lib/prefs';
 import { store } from './lib/store';
+import { AdminPage } from './pages/AdminPage';
 import { HomePage } from './pages/HomePage';
 import { LearnPage } from './pages/LearnPage';
 import { PlayPage } from './pages/PlayPage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { ProgressPage } from './pages/ProgressPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -41,9 +44,11 @@ export function App() {
   useEffect(() => applyPrefs(prefs), [prefs]);
   const [storageError, setStorageError] = useState<string | null>(store.lastError);
   useEffect(() => store.onError(setStorageError), []);
+  const syncStatus = useSyncStatus();
+  const account = currentAccount();
 
   useEffect(() => {
-    const titles: Record<string, string> = { play: 'Play', train: 'Train', learn: 'Learn', review: 'Review', progress: 'Progress', settings: 'Settings' };
+    const titles: Record<string, string> = { play: 'Play', train: 'Train', learn: 'Learn', review: 'Review', progress: 'Progress', settings: 'Settings', admin: 'Admin', privacy: 'Privacy' };
     document.title = Object.hasOwn(titles, section) ? `${titles[section]} · GridTheory` : 'GridTheory';
   }, [section]);
 
@@ -66,12 +71,28 @@ export function App() {
               <span>{item.label}</span>
             </a>
           ))}
+          {account?.admin && (
+            <a href="#/admin" className="nav-link" aria-current={section === 'admin' ? 'page' : undefined}>
+              <ShieldCheck size={20} aria-hidden="true" />
+              <span>Admin</span>
+            </a>
+          )}
         </nav>
       </header>
       <main id="main" tabIndex={-1}>
         {storageError && (
           <p className="storage-warning" role="alert">
             Your browser couldn't save your latest changes, possibly because its storage is full. Download a backup from Settings, and don't clear this site's data.
+          </p>
+        )}
+        {syncStatus === 'full' && (
+          <p className="storage-warning" role="alert">
+            Your account has reached its storage limit, so new changes aren't syncing to your other devices. They're still saved here. Delete some old games to make room.
+          </p>
+        )}
+        {syncStatus === 'denied' && (
+          <p className="storage-warning" role="alert">
+            Your changes couldn't be synced because your access has changed. Reload the page, or sign in again.
           </p>
         )}
         <ErrorBoundary key={section}>
@@ -87,6 +108,10 @@ export function App() {
           <ProgressPage />
         ) : section === 'settings' ? (
           <SettingsPage />
+        ) : section === 'admin' ? (
+          <AdminPage />
+        ) : section === 'privacy' ? (
+          <PrivacyPage />
         ) : (
           <HomePage />
         )}

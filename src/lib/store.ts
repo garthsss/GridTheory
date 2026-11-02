@@ -24,9 +24,9 @@ export class MemoryAdapter implements StorageAdapter {
 const DB_NAME = 'gridtheory';
 const DB_STORE = 'kv';
 
-function openDb(): Promise<IDBDatabase> {
+function openDb(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(name, 1);
     request.onupgradeneeded = () => request.result.createObjectStore(DB_STORE);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -36,8 +36,10 @@ function openDb(): Promise<IDBDatabase> {
 export class IndexedDbAdapter implements StorageAdapter {
   private db: IDBDatabase | null = null;
 
+  constructor(private name = DB_NAME) {}
+
   async loadAll() {
-    this.db = await openDb();
+    this.db = await openDb(this.name);
     const store = this.db.transaction(DB_STORE).objectStore(DB_STORE);
     return new Promise<Record<string, string>>((resolve, reject) => {
       const out: Record<string, string> = {};
@@ -78,22 +80,32 @@ export class IndexedDbAdapter implements StorageAdapter {
   }
 }
 
-const LOCAL_PREFIX = 'gts.';
+const LOCAL_PREFIX = 'gts.data.';
+const OLD_LOCAL_PREFIX = 'gts.';
 
 /** Fallback for browsers with IndexedDB disabled. Holds much less, but keeps the app usable. */
 export class LocalStorageAdapter implements StorageAdapter {
+  private prefix: string;
+
+  constructor(scope = '') {
+    this.prefix = scope ? `${LOCAL_PREFIX}${scope}.` : OLD_LOCAL_PREFIX;
+  }
+
   async loadAll() {
     const out: Record<string, string> = {};
     for (const key of Object.keys(localStorage)) {
-      if (key.startsWith(LOCAL_PREFIX)) out[key.slice(LOCAL_PREFIX.length)] = localStorage.getItem(key)!;
+      if (!key.startsWith(this.prefix)) continue;
+      // Scoped data and account details share the old prefix, and neither belongs to a browser with no account.
+      if (this.prefix === OLD_LOCAL_PREFIX && (key.startsWith(LOCAL_PREFIX) || key === 'gts.account')) continue;
+      out[key.slice(this.prefix.length)] = localStorage.getItem(key)!;
     }
     return out;
   }
   async put(key: string, value: string) {
-    localStorage.setItem(LOCAL_PREFIX + key, value);
+    localStorage.setItem(this.prefix + key, value);
   }
   async remove(key: string) {
-    localStorage.removeItem(LOCAL_PREFIX + key);
+    localStorage.removeItem(this.prefix + key);
   }
 }
 
@@ -237,6 +249,19 @@ export class Store {
     return [...this.cache.keys()].filter((key) => key.startsWith(prefix));
   }
 
+  /** The saved text of a key, for syncing. */
+  raw(key: string): string | undefined {
+    return this.cache.get(key);
+  }
+
+  /** Takes in a change from another device. The caller has already saved it, so this only updates what's in memory. */
+  applyRemote(key: string, value: string | null) {
+    this.parsed.delete(key);
+    if (value === null) this.cache.delete(key);
+    else this.cache.set(key, value);
+    this.channel?.postMessage({ key, value });
+  }
+
   /** All values under a prefix, for records stored one per key. */
   list<T>(prefix: string): T[] {
     return this.keys(prefix).map((key) => this.get<T | null>(key, null)).filter((value): value is T => value !== null);
@@ -259,8 +284,8 @@ export class Store {
 
 export const store = new Store();
 
-/** Connects the real browser storage. Call once before the app renders. */
-export async function openStore() {
+/** Data from before accounts existed: in the unscoped database, or older still, in localStorage. */
+async function readGuestData(): Promise<Record<string, string>> {
   const legacy: Record<string, string> = {};
   try {
     for (const key of Object.keys(localStorage)) {
@@ -269,17 +294,68 @@ export async function openStore() {
   } catch {
     // Storage may be blocked; there is simply nothing to carry over.
   }
-  try {
-    await store.hydrate(new IndexedDbAdapter(), legacy);
-  } catch {
-    await store.hydrate(new LocalStorageAdapter(), legacy);
-  }
+  return legacy;
+}
+
+function clearLegacyKeys(legacy: Record<string, string>) {
   // The old keys can go once their contents are safely in the new store.
   try {
     for (const key of Object.keys(legacy)) localStorage.removeItem(key);
   } catch {
     // Nothing further to do.
   }
+}
+
+/** Connects the real browser storage for a browser with no account. Call once before the app renders. */
+export async function openStore() {
+  const legacy = await readGuestData();
+  try {
+    await store.hydrate(new IndexedDbAdapter(), legacy);
+  } catch {
+    await store.hydrate(new LocalStorageAdapter(), legacy);
+  }
+  clearLegacyKeys(legacy);
   store.connectTabs();
   void navigator.storage?.persist?.();
+}
+
+export const accountDatabase = (userId: string) => `${DB_NAME}-${userId}`;
+
+/**
+ * Opens one account's own storage, so that people sharing a browser never see each other's data. The first account to
+ * sign in takes any progress saved before accounts existed, and that data is then removed so no second account can.
+ */
+export async function openAccountStore(userId: string, wrap: (local: StorageAdapter) => StorageAdapter) {
+  const legacy = await readGuestData();
+  let guest: Record<string, string> = {};
+  let local: StorageAdapter = new IndexedDbAdapter(accountDatabase(userId));
+  try {
+    await local.loadAll();
+    guest = await new IndexedDbAdapter().loadAll();
+  } catch {
+    local = new LocalStorageAdapter(userId);
+  }
+  await store.hydrate(wrap(local), migrate({ ...legacy, ...guest }));
+  clearLegacyKeys(legacy);
+  try {
+    indexedDB.deleteDatabase(DB_NAME);
+  } catch {
+    // Nothing further to do.
+  }
+  store.connectTabs();
+  void navigator.storage?.persist?.();
+}
+
+/** Removes one account's data from this browser, at sign-out. */
+export function forgetAccountData(userId: string) {
+  try {
+    indexedDB.deleteDatabase(accountDatabase(userId));
+  } catch {
+    // Nothing further to do.
+  }
+  try {
+    for (const key of Object.keys(localStorage)) if (key.startsWith(`${LOCAL_PREFIX}${userId}.`)) localStorage.removeItem(key);
+  } catch {
+    // Nothing further to do.
+  }
 }

@@ -1,6 +1,6 @@
 # Deploying GridTheory
 
-GridTheory is a static site, so any static host works. It needs HTTPS for install and offline support.
+GridTheory is a static site, so any static host works. It needs HTTPS for install and offline support. Accounts and access codes also need Supabase: see [SUPABASE_SETUP.md](SUPABASE_SETUP.md).
 
 Do the items under "Before you go public" in [SECURITY_AUDIT.md](SECURITY_AUDIT.md) first.
 

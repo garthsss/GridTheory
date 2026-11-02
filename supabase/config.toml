@@ -1,0 +1,6 @@
+# Settings for `npx supabase` commands. The project itself is linked with `npx supabase link`.
+project_id = "gridtheory"
+
+[functions.redeem-invite]
+# People using a code don't have an account yet, so there's no login to check. The function checks the code instead.
+verify_jwt = false

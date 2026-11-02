@@ -1,16 +1,16 @@
 import react from '@vitejs/plugin-react';
-import type { Plugin } from 'vite';
+import { loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
-import { CSP_META, SECURITY_HEADERS, headersFile } from './security-headers';
+import { SECURITY_HEADERS, cspMeta, headersFile } from './security-headers';
 
 /** Adds the security policy to production builds only, because the dev server needs inline scripts for hot reload. */
-function securityPolicy(): Plugin {
+function securityPolicy(supabaseUrl?: string): Plugin {
   return {
     name: 'gridtheory-security-policy',
     apply: 'build',
     transformIndexHtml: () => [
-      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP_META }, injectTo: 'head-prepend' },
+      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: cspMeta(supabaseUrl) }, injectTo: 'head-prepend' },
       { tag: 'meta', attrs: { name: 'referrer', content: 'no-referrer' }, injectTo: 'head-prepend' },
     ],
     generateBundle() {
@@ -19,10 +19,10 @@ function securityPolicy(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
-    securityPolicy(),
+    securityPolicy(loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png'],
@@ -57,4 +57,4 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     exclude: ['tests/**/*.engine.test.ts'],
   },
-});
+}));

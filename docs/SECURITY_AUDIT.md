@@ -75,11 +75,53 @@ These come with the design, and I've left them in place on purpose:
 - **Your host:** nothing has been deployed yet, so the headers need checking on the live site (see [DEPLOYING.md](DEPLOYING.md)).
 - **Legal review:** licensing and terms are flagged here, but need your own judgement or a lawyer.
 
-## Before adding accounts or multiplayer
+## Accounts and access codes (added 2 November 2026)
 
-This audit covers the current static app. Going online adds a whole new attack surface, and needs its own audit. At minimum:
+Everything above covers the static app. This section covers the Supabase backend added after it.
 
-- Authentication and session handling, ideally using an established provider
+### How access is enforced
+
+| Rule | How |
+| --- | --- |
+| **Admin rights can't be gained from the site** | They live in `public.admins`, which no client role can read or write. The only way in is `grant_admin`, which only the database owner can run. Nothing users can edit, such as `user_metadata`, is ever read |
+| **Every admin action is checked by the database** | Each function starts with `require_admin()`, which needs a row in `admins`, an active membership and a two-factor login. Hiding the page is only a convenience |
+| **Sign-ups are off** | Accounts are created only by the redeem function, after it uses up a valid code |
+| **Codes can't be guessed or reused** | 80 random bits, stored only as hashes, claimed atomically, and rate-limited per address and overall |
+| **Data is per person** | Row-level security on every table, and only `user_records` is open to clients, limited to the caller's own rows with an active membership |
+| **Removal is immediate** | Row-level security checks membership on every query, so it doesn't wait for a login to expire |
+| **Abuse is limited** | 50 MB and 20,000 records per account, 2 MB per record, and server-set timestamps |
+| **The service role key stays on the server** | Only the redeem function has it, and the build fails if one reaches the app's code or a `VITE_` variable |
+| **People sharing a browser are separated** | Each account has its own local database, deleted at sign-out |
+
+### Tested
+
+`tests/database.test.ts` runs the real SQL on a real Postgres, set up like Supabase with the same roles, default grants and a non-superuser owner. Each of these was tried against all six admin functions, and refused: an anonymous visitor, a person with no membership, a normal member, a member with two-factor login, a member forging admin in `user_metadata`, `app_metadata` and the login's role, a real admin without two-factor login, and a login with no user id. It also covers direct writes to private tables, reading or changing another person's records, reused, expired, revoked and email-locked codes, ten simultaneous claims of one code, the storage limit, and account deletion.
+
+In a browser, against a stand-in server: a signed-out visitor forcing `#/admin` got the sign-in gate, and a normal member got "Page not found" and a refused API call. Sign-in, two-factor set-up, creating and revoking codes, removing a person, sign-out clearing local data, and the invite link leaving the address bar were also checked.
+
+### Not tested yet
+
+These need your real Supabase project, and the checklist in [SUPABASE_SETUP.md](SUPABASE_SETUP.md) covers them:
+
+- The real sign-in service, email delivery, two-factor codes, the redeem function, and its rate limit behind Supabase's network
+- The access rules on Supabase itself, rather than on a copy of its setup
+- Syncing between two real devices
+- Restoring a backup
+
+### Risks that remain
+
+| Risk | Why it stays | What limits it |
+| --- | --- | --- |
+| **The app's code and offline chess tools are public.** Someone can bypass the sign-in screen, or run the code themselves. | The code is public under the GPL, and it runs in the browser. | They get only the offline tools, with no account or anyone's data. |
+| **Sign-in tokens are stored in the browser.** Malicious script in the page could read them. | This is how browser-only apps work. | The security policy blocks injected scripts and limits where data can be sent. Tokens expire within about an hour. |
+| **The email in a pending invite can be chosen by anyone holding a code.** | A code is the proof of access. | Lock a code to an email in Admin when it matters. |
+| **People can still edit their own ratings and progress.** | They're that person's own data, with no effect on anyone else. | **Must change for leaderboards or multiplayer**, where the server has to be the authority. |
+| **The privacy policy is a plain-language draft.** | It hasn't had legal review. | Review it, especially if you invite under-18s or people in the EU or UK. |
+
+## Before adding multiplayer
+
+Multiplayer adds a new attack surface, and needs its own audit. At minimum:
+
 - Server-side validation of every move and clock, reusing `src/core`
 - Cheat detection, moderation, reporting and blocking
 - A privacy policy, data deletion, and legal review (GDPR and minors, since chess attracts young players)

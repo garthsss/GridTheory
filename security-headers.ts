@@ -1,14 +1,18 @@
 // The app's security policy, in one place. The build and the preview server use it, and a test keeps vercel.json in step.
+// A browser enforces every policy it's given, so the two work together: the header, in a public file, allows any Supabase
+// project, and the meta tag, built from VITE_SUPABASE_URL, narrows that to exactly this site's project.
 
-const CSP_COMMON = [
+const IMPORT_SERVICES = 'https://lichess.org https://api.chess.com';
+
+const cspCommon = (backend: string) => [
   "default-src 'none'",
   // The chess engine is WebAssembly, which needs this one permission. No inline scripts and no eval are allowed.
   "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self'",
   "img-src 'self' data:",
   "font-src 'self'",
-  // The only outside services the app may talk to: game import.
-  "connect-src 'self' https://lichess.org https://api.chess.com",
+  // The only outside services the app may talk to: game import, and this site's backend.
+  `connect-src 'self' ${IMPORT_SERVICES}${backend ? ` ${backend}` : ''}`,
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",
@@ -17,9 +21,9 @@ const CSP_COMMON = [
 ];
 
 /** For a <meta> tag, which is the fallback if a host doesn't send headers. Browsers ignore frame-ancestors there. */
-export const CSP_META = CSP_COMMON.join('; ');
+export const cspMeta = (supabaseUrl?: string) => cspCommon(supabaseUrl ? new URL(supabaseUrl).origin : '').join('; ');
 
-export const CSP_HEADER = [...CSP_COMMON, "frame-ancestors 'none'", 'upgrade-insecure-requests'].join('; ');
+export const CSP_HEADER = [...cspCommon('https://*.supabase.co'), "frame-ancestors 'none'", 'upgrade-insecure-requests'].join('; ');
 
 /** Sent on every response. */
 export const SECURITY_HEADERS: Record<string, string> = {

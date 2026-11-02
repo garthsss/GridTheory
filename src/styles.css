@@ -323,6 +323,27 @@ legend { font-weight: 600; font-size: 0.9rem; padding: 0; margin-bottom: 8px; }
 .badge-inaccuracy { background: #8a5d0d; }
 .badge-mistake { background: #b35c0c; }
 .badge-blunder { background: #b4301f; }
+.gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.gate-card { width: 100%; max-width: 420px; padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.gate-card:has(.privacy) { max-width: 680px; }
+.gate-brand { margin-bottom: 8px; }
+.gate-tag { margin: 0 0 16px; }
+.gate-form { display: flex; flex-direction: column; gap: 8px; }
+.gate-form h1, .gate-card h1 { font-size: 1.5rem; margin: 0 0 8px; }
+.gate-form .btn-primary { margin-top: 8px; }
+.gate-foot { margin-top: 16px; }
+.link-button { display: block; padding: 4px 0; background: none; border: 0; color: var(--accent); font: inherit; font-size: 0.9rem; text-align: left; text-decoration: underline; cursor: pointer; }
+.link-button.inline { display: inline; padding: 0; font-size: inherit; }
+.privacy h2 { margin-top: 20px; }
+.privacy ul { padding-left: 20px; }
+.privacy li { margin-bottom: 6px; }
+.qr { display: block; margin: 12px 0; background: #fff; padding: 8px; border-radius: 6px; }
+.selectable { user-select: all; overflow-wrap: anywhere; }
+.code-big { font: 600 1.15rem var(--mono); }
+.new-code { margin-top: 16px; padding: 12px 14px; border-left: 4px solid var(--accent); }
+.admin-list { list-style: none; margin: 0; padding: 0; }
+.admin-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.account-status { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .move-note p { margin-bottom: 6px; }
 .grade-row { padding-left: 10px; margin-bottom: 8px; border-left: 4px solid var(--line, transparent); }
 .move-note-mistake { border-left: 4px solid #b35c0c; }

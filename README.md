@@ -1,6 +1,6 @@
 # GridTheory
 
-A local-first chess training app. It runs in your browser with no account and no server.
+A local-first chess training app. The chess runs in your browser, and invite-only accounts sync your progress between devices.
 
 - **Play**: 12 bots from about 100 to 3000+, with optional chess clocks, live grades on every move, and a coach that can warn you before a bad move.
 - **Train**: endless random opening, middlegame and endgame scenarios, with every move graded as you play it and an optional timer.
@@ -24,7 +24,7 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173. Games, progress and settings are stored in this browser.
+Then open http://localhost:5173. With no backend configured, it runs with no accounts, and everything is stored in this browser. To add accounts and access codes, see [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 
 ## Tests
 
@@ -32,7 +32,7 @@ Then open http://localhost:5173. Games, progress and settings are stored in this
 npm test
 ```
 
-Fast tests cover notation parsing, motif detection, grading, course legality and scenario rules.
+Fast tests cover notation parsing, motif detection, grading, course legality and scenario rules. They also attack the real database rules on a real Postgres, as anonymous visitors, normal members and forged admins.
 
 ```bash
 npm run verify:course
@@ -47,6 +47,8 @@ against each other to check the ladder order, and sample scenarios are generated
 | --- | --- |
 | Rules and clock logic with no UI, reusable on a server | `src/core/` |
 | Storage layer, data migrations and backups | `src/lib/store.ts`, `src/lib/storage.ts` |
+| Accounts, sync and access decisions | `src/backend/` |
+| Database rules and the access-code function | `supabase/` |
 | Chess.com and Lichess import | `src/import/sources.ts` |
 | Drills, puzzles, skill map and daily plan | `src/training/` |
 | Engine wrapper and bots | `src/engine/` |
@@ -67,12 +69,11 @@ so the top bots will play a bit weaker on a slower computer than the one used fo
 
 ## Deploying and security
 
-See [docs/DEPLOYING.md](docs/DEPLOYING.md) and [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+See [docs/DEPLOYING.md](docs/DEPLOYING.md), [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) and [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
 ## Going online later
 
-The app is single-user for now, but it's organised to make the move easier. All saved data goes through one storage layer with
-versioned migrations, so server sync means adding a storage adapter. `src/core` has no UI dependencies, so a server can run the same rules to check
+Accounts and sync already exist. For multiplayer, `src/core` has no UI dependencies, so a server can run the same rules to check
 moves and clocks. Every game records a player id. Before multiple users, licensing should be reviewed.
 
 To rebuild the puzzle set: `node scripts/build-puzzles.mjs <lichess_db_puzzle.csv.zst>`. A partial download works.

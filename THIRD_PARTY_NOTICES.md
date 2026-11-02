@@ -10,6 +10,7 @@ GridTheory is licensed under the GNU General Public License, version 3 or later 
 | [react-chessboard](https://github.com/Clariity/react-chessboard) | Chess piece artwork | MIT |
 | [Lucide](https://lucide.dev) | Icons | ISC |
 | [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque), [IBM Plex Sans and Mono](https://www.ibm.com/plex/) | Fonts, via Fontsource | SIL OFL 1.1 (see `licenses/`) |
+| [supabase-js](https://github.com/supabase/supabase-js) | Accounts and synced data | MIT |
 | [Lichess puzzle database](https://database.lichess.org/#puzzles) | Puzzle positions | CC0 1.0 |
 | [Lichess opening database](https://github.com/lichess-org/chess-openings) | Opening and variation names | CC0 1.0 |
 

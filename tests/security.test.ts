@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { Chess } from 'chess.js';
 import { describe, expect, it } from 'vitest';
-import { CSP_HEADER, CSP_META, SECURITY_HEADERS, headersFile } from '../security-headers';
+import { CSP_HEADER, cspMeta, SECURITY_HEADERS, headersFile } from '../security-headers';
 import { ImportError, fetchChessCom, importGames, toSavedGame } from '../src/import/sources';
 import { BackupError, sanitizeBackup } from '../src/lib/backup';
 import { PGN_LIMITS, PgnError, isIllegalPosition, parseGame, splitGames } from '../src/lib/chess';
@@ -242,19 +242,19 @@ describe('security headers', () => {
     expect(CSP_HEADER).toContain("base-uri 'none'");
     expect(CSP_HEADER).not.toContain("'unsafe-inline'");
     expect(CSP_HEADER).not.toContain("'unsafe-eval'");
-    expect(CSP_HEADER).not.toMatch(/\*/);
+    expect(CSP_HEADER.replace('https://*.supabase.co', '')).not.toMatch(/\*/);
     expect(SECURITY_HEADERS['X-Frame-Options']).toBe('DENY');
     expect(SECURITY_HEADERS['X-Content-Type-Options']).toBe('nosniff');
     expect(SECURITY_HEADERS['Strict-Transport-Security']).toContain('max-age=');
   });
 
   it('allows only the two outside services the app uses', () => {
-    const connect = /connect-src ([^;]+)/.exec(CSP_META)![1].split(' ');
+    const connect = /connect-src ([^;]+)/.exec(cspMeta())![1].split(' ');
     expect(connect).toEqual(["'self'", 'https://lichess.org', 'https://api.chess.com']);
   });
 
   it('leaves frame-ancestors out of the meta tag, where browsers ignore it', () => {
-    expect(CSP_META).not.toContain('frame-ancestors');
+    expect(cspMeta()).not.toContain('frame-ancestors');
   });
 
   it('keeps vercel.json and the _headers file in step', () => {
