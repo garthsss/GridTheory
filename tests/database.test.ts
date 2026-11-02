@@ -85,6 +85,7 @@ beforeEach(async () => {
 });
 
 const CALLS: [string, string, unknown[]][] = [
+  ['admin_clear_old_invites', 'select public.admin_clear_old_invites()', []],
   ['admin_create_invite', 'select public.admin_create_invite($1, $2, $3)', ['x', null, 7]],
   ['admin_list_invites', 'select public.admin_list_invites()', []],
   ['admin_revoke_invite', 'select public.admin_revoke_invite($1)', ['00000000-0000-0000-0000-000000000000']],
@@ -188,7 +189,7 @@ describe('private tables are out of reach', () => {
       (await db.query<{ name: string }>(`select proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and has_function_privilege($1, p.oid, 'execute') order by 1`, [role])).rows.map((row) => row.name);
     expect(await allowed('anon')).toEqual([]);
     expect(await allowed('authenticated')).toEqual([
-      'admin_create_invite', 'admin_list_audit', 'admin_list_invites', 'admin_list_members', 'admin_revoke_invite', 'admin_set_member_status',
+      'admin_clear_old_invites', 'admin_create_invite', 'admin_list_audit', 'admin_list_invites', 'admin_list_members', 'admin_revoke_invite', 'admin_set_member_status',
       'delete_my_account', 'is_admin', 'is_member', 'my_access',
     ]);
   });
@@ -287,6 +288,39 @@ describe('access codes', () => {
     const { code, id } = await create();
     await claim(code);
     await refused(as(adminWho, 'select public.admin_revoke_invite($1)', [id]));
+  });
+
+  it('clears only codes that can never work again', async () => {
+    const live = await create('live');
+    const revoked = await create('revoked');
+    const expired = await create('expired');
+    const used = await create('used');
+    const midway = await create('being claimed');
+    await as(adminWho, 'select public.admin_revoke_invite($1)', [revoked.id]);
+    await owner(`update public.invite_codes set expires_at = now() - interval '1 second' where id = $1`, [expired.id]);
+    await claim(used.code);
+    await as(service, 'select public.complete_invite($1, $2)', [used.id, outsiderId]);
+    await claim(midway.code);
+
+    const [row] = await as<{ admin_clear_old_invites: number }>(adminWho, 'select public.admin_clear_old_invites()');
+    expect(row.admin_clear_old_invites).toBe(2);
+    const left = (await owner('select label from public.invite_codes order by label')).map((invite) => invite.label);
+    expect(left).toEqual(['being claimed', 'live', 'used']);
+    const [again] = await as<{ admin_clear_old_invites: number }>(adminWho, 'select public.admin_clear_old_invites()');
+    expect(again.admin_clear_old_invites).toBe(0);
+
+    // The rest still behave: the live code works, the membership stands, and the clearing was logged once.
+    expect(await claim(live.code)).toBe(live.id);
+    const [access] = await as<{ my_access: { member: boolean } }>(user(outsiderId), 'select public.my_access()');
+    expect(access.my_access.member).toBe(true);
+    expect(await owner(`select 1 from public.audit_log where action = 'invite.cleared'`)).toHaveLength(1);
+  });
+
+  it("can't bring a cleared code back", async () => {
+    const { code, id } = await create();
+    await as(adminWho, 'select public.admin_revoke_invite($1)', [id]);
+    await as(adminWho, 'select public.admin_clear_old_invites()');
+    expect(await claim(code)).toBeNull();
   });
 
   it('rejects silly settings', async () => {

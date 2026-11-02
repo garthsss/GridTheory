@@ -43,6 +43,9 @@ function inviteStatus(invite: Invite) {
   return `Unused, expires ${when(invite.expiresAt)}`;
 }
 
+/** Can never work again, and has no record worth keeping. Used codes stay as the record of who joined how. */
+const isClearable = (invite: Invite) => !invite.claimedAt && (Boolean(invite.revokedAt) || new Date(invite.expiresAt) < new Date());
+
 function NotFound() {
   return (
     <div className="page narrow">
@@ -133,6 +136,7 @@ function Tools() {
   const [copied, setCopied] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cleared, setCleared] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const [i, m, a] = await Promise.all([
@@ -167,6 +171,13 @@ function Tools() {
     await load();
     return data as unknown;
   }
+
+  async function clearOld() {
+    const result = await act('admin_clear_old_invites', {});
+    if (typeof result === 'number') setCleared(result);
+  }
+
+  const clearable = invites.filter(isClearable).length;
 
   async function createInvite(event: FormEvent) {
     event.preventDefault();
@@ -230,6 +241,18 @@ function Tools() {
             ))}
           </ul>
         )}
+        {clearable > 0 && (
+          confirming === 'clear-codes' ? (
+            <span className="btn-row">
+              <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void clearOld()}>Yes, clear {clearable}</button>
+              <button type="button" className="btn btn-quiet" onClick={() => setConfirming(null)}>Cancel</button>
+            </span>
+          ) : (
+            <button type="button" className="btn btn-quiet" onClick={() => { setCleared(null); setConfirming('clear-codes'); }}>Clear expired and revoked ({clearable})</button>
+          )
+        )}
+        {cleared !== null && <p className="small" role="status">Cleared {cleared} {cleared === 1 ? 'code' : 'codes'}.</p>}
+        <p className="small muted">Clearing removes codes that can never work again. Unused codes still in date, and used codes, stay.</p>
       </section>
 
       <section className="settings-card">
