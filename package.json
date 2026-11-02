@@ -1,0 +1,41 @@
+{
+  "name": "gridtheory",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GridTheory: duel chess bots, learn with a coach, study a course, and review your games.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=22.15"
+  },
+  "scripts": {
+    "postinstall": "node scripts/copy-engine.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/check-dist.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "verify:course": "vitest run --config vitest.engine.config.ts",
+    "calibrate": "vitest run --config vitest.calibrate.config.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.65.0",
+    "react": "^19.3.1",
+    "react-chessboard": "^5.12.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "stockfish": "^19.0.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.5"
+  }
+}

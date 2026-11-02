@@ -1,0 +1,9 @@
+node_modules
+dist
+public/engine
+*.log
+dev-dist
+.env
+.env.*
+*.pem
+*.key
